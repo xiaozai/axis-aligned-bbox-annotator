@@ -200,7 +200,7 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
 
                 box[2] = rgb_rp_x - rgb_lp_x
                 box[3] = y - iy
-                print('Frame - %d :  Box - '%frame_idx, box)
+                print('Frame - %d :  Box - '%(frame_idx+1), box)
                 I = I_temp.copy()
                 cv2.rectangle(I, (int(rgb_lp_x), int(iy)), (int(rgb_rp_x), int(y)), box_color, box_thickness)
                 cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
