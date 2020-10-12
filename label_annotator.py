@@ -93,7 +93,7 @@ def load_data(seq_path, num_img):
     else:
         print('\033[93m'+'Init Groundtruth :  not found existing file !!!!!!!!!!!!!' + '\033[0m')
         data["groundtruth"] = -1*np.ones((num_img, 4), dtype=float)
-
+    print('----------------------------------------------')
     return data
 
 def save_attributes_gt(data, output_path):
@@ -200,7 +200,7 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
 
                 box[2] = rgb_rp_x - rgb_lp_x
                 box[3] = y - iy
-                print('Frame : %d'%frame_idx, box)
+                print('Frame - %d :  Box - '%frame_idx, box)
                 I = I_temp.copy()
                 cv2.rectangle(I, (int(rgb_lp_x), int(iy)), (int(rgb_rp_x), int(y)), box_color, box_thickness)
                 cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
