@@ -84,7 +84,12 @@ def load_data(seq_path, num_img):
         for ii in range(len(lines)):
             line = lines[ii]
             gt_box.append([float(v) for v in line.split(",")])
-        data["groundtruth"] = np.array(gt_box)
+        gt_box = np.array(gt_box)
+        if len(gt_box) < num_img:
+            padding = -1*np.ones((num_img-len(gt_box), 4), dtype=float)
+            gt_box = np.concatenate((gt_box, padding), axis=0)
+        data["groundtruth"] = gt_box
+
     else:
         print('\033[93m'+'Init Groundtruth :  not found existing file !!!!!!!!!!!!!' + '\033[0m')
         data["groundtruth"] = -1*np.ones((num_img, 4), dtype=float)
@@ -195,7 +200,7 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
 
                 box[2] = rgb_rp_x - rgb_lp_x
                 box[3] = y - iy
-                print(box)
+                print('Frame : %d'%frame_idx, box)
                 I = I_temp.copy()
                 cv2.rectangle(I, (int(rgb_lp_x), int(iy)), (int(rgb_rp_x), int(y)), box_color, box_thickness)
                 cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
