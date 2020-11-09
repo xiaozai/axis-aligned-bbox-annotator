@@ -5,19 +5,23 @@ import matplotlib.pyplot as plt
 
 import argparse
 
-attr_name = ["aspect-change", "dark-scene", "deformable", "depth-change",
-             "fast-motion", "full-occlusion", "out-of-frame", "out-of-plane",
+# "aspect-change", "size-change",  "depth-change",  "fast-motion", "unassigned" # Automatic
+
+attr_name = ["aspect-change", "background-clutter", "dark-scene", "deformable",
+             "depth-change", "fast-motion", "full-occlusion", "moving-view",
+             "motion-blur",   "out-of-frame", "out-of-plane",
              "partial-occlusion", "reflective-target", "similar-objects",
-             "size-change", "background-clutter", "unassigned"]
+             "size-change", "unassigned"
+             ]
 
 def read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=3000,
               txt_pos=(25, 25), font=cv2.FONT_HERSHEY_SIMPLEX,
-              fontScale=1, fontColor=(255,255,255), lineType=2,
+              fontScale=1, fontColor=(255,0,0), lineType=2,
               box_color=(255,0,0), box_thickness=2):
 
     rgb = os.path.join(img_path, '%08d.jpg'%(frame_idx+1))                      # after rename
     depth = os.path.join(dp_path, '%08d.png'%(frame_idx+1))
-    # rgb = os.path.join(img_path, '%06d_color.jpeg'%(frame_idx))                      # after rename
+    # rgb = os.path.join(img_path, '%06d_color.jpeg'%(frame_idx))               # after rename
     # depth = os.path.join(dp_path, '%06d_depth.png'%(frame_idx))
     rgb = cv2.imread(rgb)
     cv2.putText(rgb,'frame idx : %d'%(frame_idx+1), txt_pos, font, fontScale,fontColor,lineType)
@@ -31,10 +35,14 @@ def read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=3000,
     rgb_box = out_data["groundtruth"][frame_idx, ...]
     dp_box = np.copy(rgb_box)
     dp_box[0] += 640
-    cv2.rectangle(I, (int(rgb_box[0]), int(rgb_box[1])), (int(rgb_box[0]+rgb_box[2]), int(rgb_box[1]+rgb_box[3])), box_color, box_thickness)
-    cv2.rectangle(I, (int(dp_box[0]), int(dp_box[1])), (int(dp_box[0]+dp_box[2]), int(dp_box[1]+dp_box[3])), box_color, box_thickness)
+    if not isNaN(rgb_box[0]):
+        cv2.rectangle(I, (int(rgb_box[0]), int(rgb_box[1])), (int(rgb_box[0]+rgb_box[2]), int(rgb_box[1]+rgb_box[3])), box_color, box_thickness)
+        cv2.rectangle(I, (int(dp_box[0]), int(dp_box[1])), (int(dp_box[0]+dp_box[2]), int(dp_box[1]+dp_box[3])), box_color, box_thickness)
 
     return I, I_temp, rgb_box
+
+def isNaN(num):
+    return num != num
 
 def nothing(x):
     pass
@@ -89,7 +97,6 @@ def load_data(seq_path, num_img):
             padding = -1*np.ones((num_img-len(gt_box), 4), dtype=float)
             gt_box = np.concatenate((gt_box, padding), axis=0)
         data["groundtruth"] = gt_box
-
     else:
         print('\033[93m'+'Init Groundtruth :  not found existing file !!!!!!!!!!!!!' + '\033[0m')
         data["groundtruth"] = -1*np.ones((num_img, 4), dtype=float)
@@ -227,7 +234,7 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
                 # Go to the previous frame
                 frame_idx = num_img-1 if frame_idx == 0 else frame_idx-1
 
-                I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=depth_threshold)
+                I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, box_color=box_color, depth_threshold=depth_threshold)
                 cv2.imshow(seq, I)
                 set_current_attr(out_data, frame_idx)
 
@@ -238,7 +245,7 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
                 # Go to the next frame
                 frame_idx = 0 if frame_idx == num_img-1 else frame_idx+1
 
-                I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=depth_threshold)
+                I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, box_color=box_color, depth_threshold=depth_threshold)
                 cv2.imshow(seq, I)
                 set_current_attr(out_data, frame_idx)
 
@@ -246,9 +253,10 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
 
 parser = argparse.ArgumentParser(description='Settings for Annotator')
 parser.add_argument('--sequence_path', type=str, default='/home/yan/Desktop/raw_results_crop/')
-parser.add_argument('--sequences', nargs='+', default=None)
-parser.add_argument('--out_path', type=str, default=None)
-parser.add_argument('--depth_threshold', type=int, default=3000)
+parser.add_argument('--sequences', nargs='+', default=None, help='to annotated the specific sequences')
+parser.add_argument('--out_path', type=str, default=None, help='to save the annotation files, otherwise under the sequence folder')
+parser.add_argument('--depth_threshold', type=int, default=3000, help='to ignore the largest depth values')
+parser.add_argument('--box_color', default=(255, 255, 255), help='the BGR color of the drawing box')
 
 if __name__ == '__main__':
 
@@ -258,4 +266,4 @@ if __name__ == '__main__':
     # sequences = ['flower02_wild']
     print('Totally %d sequences'%len(args.sequences))
 
-    attribute_annotator(args.sequence_path, sequences=args.sequences, out_path=args.out_path, depth_threshold=args.depth_threshold)
+    attribute_annotator(args.sequence_path, sequences=args.sequences, out_path=args.out_path, box_color=args.box_color, depth_threshold=args.depth_threshold)
