@@ -7,12 +7,13 @@ import argparse
 
 # "aspect-change", "size-change",  "depth-change",  "fast-motion", "unassigned" # Automatic
 
-attr_name = ["aspect-change", "background-clutter", "dark-scene", "deformable",
-             "depth-change", "fast-motion", "full-occlusion", "moving-view",
-             "motion-blur",   "out-of-frame", "out-of-plane",
-             "partial-occlusion", "reflective-target", "similar-objects",
-             "size-change", "unassigned"
-             ]
+# attr_name = ["aspect-change", "background-clutter", "dark-scene", "deformable",
+#              "depth-change", "fast-motion", "full-occlusion", "moving-view",
+#              "motion-blur",   "out-of-frame", "out-of-plane",
+#              "partial-occlusion", "reflective-target", "similar-objects",
+#              "size-change", "unassigned"
+#              ]
+attr_name = []
 
 def read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=3000,
               txt_pos=(25, 25), font=cv2.FONT_HERSHEY_SIMPLEX,
@@ -112,11 +113,11 @@ def save_attributes_gt(data, output_path):
                 fp.write('%d\n'%attr[ii])
             fp.write('%d'%attr[-1])
 
-        groundtruth = data["groundtruth"]
-        with open(os.path.join(output_path, "groundtruth.txt"), 'w') as fp:
-            for ii in range(len(groundtruth) - 1):
-                fp.write('%f,%f,%f,%f\n'%(groundtruth[ii, 0], groundtruth[ii, 1], groundtruth[ii, 2], groundtruth[ii, 3]))
-            fp.write('%f,%f,%f,%f'%(groundtruth[-1, 0], groundtruth[-1, 1], groundtruth[-1, 2], groundtruth[-1, 3]))
+    groundtruth = data["groundtruth"]
+    with open(os.path.join(output_path, "groundtruth.txt"), 'w') as fp:
+        for ii in range(len(groundtruth) - 1):
+            fp.write('%f,%f,%f,%f\n'%(groundtruth[ii, 0], groundtruth[ii, 1], groundtruth[ii, 2], groundtruth[ii, 3]))
+        fp.write('%f,%f,%f,%f'%(groundtruth[-1, 0], groundtruth[-1, 1], groundtruth[-1, 2], groundtruth[-1, 3]))
 
 def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_threshold=3000, box_color=(255,0,0), box_thickness=2):
 
@@ -256,7 +257,7 @@ parser.add_argument('--sequence_path', type=str, default='/home/yan/Desktop/raw_
 parser.add_argument('--sequences', nargs='+', default=None, help='to annotated the specific sequences')
 parser.add_argument('--out_path', type=str, default=None, help='to save the annotation files, otherwise under the sequence folder')
 parser.add_argument('--depth_threshold', type=int, default=3000, help='to ignore the largest depth values')
-parser.add_argument('--box_color', default=(255, 255, 255), help='the BGR color of the drawing box')
+parser.add_argument('--box_color', default=(0, 0, 255), help='the BGR color of the drawing box')
 
 if __name__ == '__main__':
 
