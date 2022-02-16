@@ -2,53 +2,45 @@ import os
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+
 import argparse
 
 # "aspect-change", "size-change",  "depth-change",  "fast-motion", "unassigned" # Automatic
 
-# attr_name = ["aspect-change",
-#              "background-clutter",
-#              "dark-scene",
-#              "deformable",
-#              "depth-change",
-#              "fast-motion",
-#              "full-occlusion",
-#              "moving-view",
-#              # "motion-blur",
-#              "out-of-frame",
-#              "out-of-plane",
-#              "partial-occlusion",
-#              "reflective-target",
-#              "similar-objects",
-#              "size-change",
-#              "unassigned"
+# attr_name = ["aspect-change", "background-clutter", "dark-scene", "deformable",
+#              "depth-change", "fast-motion", "full-occlusion", "moving-view",
+#              "motion-blur",   "out-of-frame", "out-of-plane",
+#              "partial-occlusion", "reflective-target", "similar-objects",
+#              "size-change", "unassigned"
 #              ]
 attr_name = []
 
-def read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=3000,
+def read_rgbd(rgb_name, frame_idx, out_data, depth_threshold=3000,
               txt_pos=(25, 25), font=cv2.FONT_HERSHEY_SIMPLEX,
               fontScale=1, fontColor=(255,0,0), lineType=2,
               box_color=(255,0,0), box_thickness=2):
 
-    rgb = os.path.join(img_path, '%08d.jpg'%(frame_idx+1))                      # after rename
-    depth = os.path.join(dp_path, '%08d.png'%(frame_idx+1))
-    
-    rgb = cv2.imread(rgb)
-    cv2.putText(rgb,'%d'%(frame_idx+1), txt_pos, font, fontScale,fontColor,lineType)
-    depth = cv2.imread(depth, -1)                                               # cv2.IMREAD_GRAYSCALE)
-    depth[depth>depth_threshold] = depth_threshold                              # ignore some large values, depth scale 1 = 1 mm
-    depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
-    depth = cv2.applyColorMap(np.uint8(depth), cv2.COLORMAP_JET)
-    I = cv2.hconcat((rgb, depth))
+    # rgb = os.path.join(img_path, '%08d.jpg'%(frame_idx+1))                      # after rename
+    # depth = os.path.join(dp_path, '%08d.png'%(frame_idx+1))
+    # rgb = os.path.join(img_path, '%06d_color.jpeg'%(frame_idx))               # after rename
+    # depth = os.path.join(dp_path, '%06d_depth.png'%(frame_idx))
+    print(rgb_name)
+    rgb = cv2.imread(rgb_name)
+    cv2.putText(rgb,'frame idx : %d'%(frame_idx+1), txt_pos, font, fontScale,fontColor,lineType)
+    # depth = cv2.imread(depth, -1)                                               # cv2.IMREAD_GRAYSCALE)
+    # depth[depth>depth_threshold] = depth_threshold                              # ignore some large values, depth scale 1 = 1 mm
+    # depth = cv2.normalize(depth, None, 0, 255, cv2.NORM_MINMAX)
+    # depth = cv2.applyColorMap(np.uint8(depth), cv2.COLORMAP_JET)
+    # I = cv2.hconcat((rgb, depth))
+    I = rgb
     I_temp = I.copy()
 
     rgb_box = out_data["groundtruth"][frame_idx, ...]
-    dp_box = np.copy(rgb_box)
-    dp_box[0] += 640
+    # dp_box = np.copy(rgb_box)
+    # dp_box[0] += 640
     if not isNaN(rgb_box[0]):
-        cv2.rectangle(I, (int(rgb_box[0]), int(rgb_box[1])), (int(rgb_box[0]+rgb_box[2]), int(rgb_box[1]+rgb_box[3])), (0, 0, 255), box_thickness)
-        cv2.rectangle(I, (int(dp_box[0]), int(dp_box[1])), (int(dp_box[0]+dp_box[2]), int(dp_box[1]+dp_box[3])), (0, 0, 255), box_thickness)
+        cv2.rectangle(I, (int(rgb_box[0]), int(rgb_box[1])), (int(rgb_box[0]+rgb_box[2]), int(rgb_box[1]+rgb_box[3])), box_color, box_thickness)
+        # cv2.rectangle(I, (int(dp_box[0]), int(dp_box[1])), (int(dp_box[0]+dp_box[2]), int(dp_box[1]+dp_box[3])), box_color, box_thickness)
 
     return I, I_temp, rgb_box
 
@@ -59,10 +51,9 @@ def nothing(x):
     pass
 
 def create_attr_panel():
-    if attr_name:
-        cv2.namedWindow("Attributes", cv2.WINDOW_NORMAL)
-        for attr in attr_name:
-            cv2.createTrackbar(attr, "Attributes", 0, 1, nothing)
+    cv2.namedWindow("Attributes", cv2.WINDOW_NORMAL)
+    for attr in attr_name:
+        cv2.createTrackbar(attr, "Attributes", 0, 1, nothing)
 
 def get_current_attr():
     current_values = {}
@@ -125,20 +116,12 @@ def save_attributes_gt(data, output_path):
             fp.write('%d'%attr[-1])
 
     groundtruth = data["groundtruth"]
-    N = len(groundtruth)
     with open(os.path.join(output_path, "groundtruth.txt"), 'w') as fp:
-        for ii in range(N):
-            x, y, w, h = groundtruth[ii,:]
-            if isNaN(x) or int(w) in [0, -1]:
-                fp.write('nan,nan,nan,nan\n')
-            else:
-                x = max(0, int(x))
-                y = max(0, int(y))
-                w = int(groundtruth[ii,0]+w) - x
-                h = int(groundtruth[ii,1]+h) - y
-                fp.write('%d,%d,%d,%d\n'%(x,y,w,h))
+        for ii in range(len(groundtruth) - 1):
+            fp.write('%f,%f,%f,%f\n'%(groundtruth[ii, 0], groundtruth[ii, 1], groundtruth[ii, 2], groundtruth[ii, 3]))
+        fp.write('%f,%f,%f,%f'%(groundtruth[-1, 0], groundtruth[-1, 1], groundtruth[-1, 2], groundtruth[-1, 3]))
 
-def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_threshold=3000, box_color=(255,0,0), box_thickness=2, frame_idx=0):
+def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_threshold=3000, box_color=(255,0,0), box_thickness=2):
 
     if not sequences:
         sequences = os.listdir(sequence_path)
@@ -149,8 +132,8 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
     sequences.sort()
 
     for seq in sequences:
-        img_path = os.path.join(sequence_path, seq, 'color')
-        dp_path = os.path.join(sequence_path, seq, 'depth')
+        img_path = os.path.join(sequence_path, seq)
+        # dp_path = os.path.join(sequence_path, seq, 'depth')
         if not out_path:
             out_path = os.path.join(sequence_path, seq)
         else:
@@ -158,6 +141,11 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
         if not os.path.isdir(out_path):
             os.mkdir(out_path)
 
+        frames = os.listdir(img_path)
+        try:
+            frames.remove('groundtruth.txt')
+        except:
+            pass
         num_img = len(os.listdir(img_path))
         print('totally %d images'%num_img)
 
@@ -165,13 +153,13 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
         out_data = load_data(os.path.join(sequence_path, seq), num_img)
 
         '''Define the Mouse callback'''
-        global ix, iy, drawing, box, prev_box
+        global ix, iy, drawing, box
         ix, iy, drawing = -1, -1, False
 
         '''Show RGB and Depth images'''
-        frame_idx = frame_idx % num_img
-        I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, depth_threshold=depth_threshold, box_color=box_color, box_thickness=box_thickness)
-        prev_box = [box[0], box[1], box[2], box[3]]
+        frame_idx = 0
+        rgb = os.path.join(sequence_path, seq, frames[frame_idx])
+        I, I_temp, box = read_rgbd(rgb, frame_idx, out_data, depth_threshold=depth_threshold, box_color=box_color, box_thickness=box_thickness)
         cv2.namedWindow(seq)
         cv2.imshow(seq, I)
 
@@ -180,43 +168,35 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
         set_current_attr(out_data, frame_idx)
 
         def draw_box(event, x, y, flags, param):
-            global ix, iy, drawing, box, prev_box
+            global ix, iy, drawing, box
 
             pos_shift = 640                                          # Image width
-
-            # Last annotation
-            prev_left_x = prev_box[0] - pos_shift if prev_box[0] > pos_shift else prev_box[0]
-            prev_left_y = prev_box[1]
-            prev_right_x = prev_left_x + prev_box[2]
-            prev_right_y = prev_left_y + prev_box[3]
 
             if event == cv2.EVENT_LBUTTONDOWN:
                 drawing, ix, iy = True, x, y                         # init point, should be the Left Top Point
                 box[0] = ix - pos_shift if ix > pos_shift else ix   # initilize the left top point
                 box[1] = iy
-
             elif event == cv2.EVENT_MOUSEMOVE:
                 if drawing == True:
                     if ix > pos_shift:
                         '''Mouse pointer on the Depth'''
                         rgb_lp_x = ix - pos_shift
-                        dp_lp_x = ix
+                        # dp_lp_x = ix
                         rgb_rp_x = x - pos_shift
-                        dp_rp_x = x
+                        # dp_rp_x = x
                     else:
                         '''Mouse pointer on the RGB '''
                         rgb_lp_x = ix
-                        dp_lp_x = ix + pos_shift
+                        # dp_lp_x = ix + pos_shift
                         rgb_rp_x = x
-                        dp_rp_x = x + pos_shift
+                        # dp_rp_x = x + pos_shift
 
                     box[2] = rgb_rp_x - rgb_lp_x
                     box[3] = y - iy
-
+                    # print('%f, %f, %f, %f'%(rgb_lp_x, iy, rgb_rp_x, y))
                     I = I_temp.copy()
-                    cv2.rectangle(I, (int(prev_left_x), int(prev_left_y)), (int(prev_right_x), int(prev_right_y)), (255, 0, 0), 1)
                     cv2.rectangle(I, (int(rgb_lp_x), int(iy)), (int(rgb_rp_x), int(y)), box_color, box_thickness)
-                    cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
+                    # cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
                     cv2.imshow(seq, I)
 
             elif event == cv2.EVENT_LBUTTONUP:
@@ -224,27 +204,23 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
                 if ix > pos_shift:
                     '''Mouse pointer on the Depth'''
                     rgb_lp_x = ix - pos_shift
-                    dp_lp_x = ix
+                    # dp_lp_x = ix
                     rgb_rp_x = x - pos_shift
-                    dp_rp_x = x
+                    # dp_rp_x = x
                 else:
                     '''Mouse pointer on the RGB '''
                     rgb_lp_x = ix
-                    dp_lp_x = ix + pos_shift
+                    # dp_lp_x = ix + pos_shift
                     rgb_rp_x = x
-                    dp_rp_x = x + pos_shift
+                    # dp_rp_x = x + pos_shift
 
                 box[2] = rgb_rp_x - rgb_lp_x
                 box[3] = y - iy
-
-                prev_box = [box[0], box[1], box[2], box[3]]
-
                 print('Frame - %d :  Box - '%(frame_idx+1), box)
                 I = I_temp.copy()
                 cv2.rectangle(I, (int(rgb_lp_x), int(iy)), (int(rgb_rp_x), int(y)), box_color, box_thickness)
-                cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
+                # cv2.rectangle(I, (int(dp_lp_x), int(iy)), (int(dp_rp_x), int(y)), box_color, box_thickness)
                 cv2.imshow(seq, I)
-
 
         cv2.setMouseCallback(seq, draw_box)
 
@@ -268,7 +244,6 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
                 frame_idx = num_img-1 if frame_idx == 0 else frame_idx-1
 
                 I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, box_color=box_color, depth_threshold=depth_threshold)
-                prev_box = [box[0], box[1], box[2], box[3]]
                 cv2.imshow(seq, I)
                 set_current_attr(out_data, frame_idx)
 
@@ -280,7 +255,6 @@ def attribute_annotator(sequence_path, sequences=None, out_path=None, depth_thre
                 frame_idx = 0 if frame_idx == num_img-1 else frame_idx+1
 
                 I, I_temp, box = read_rgbd(img_path, dp_path, frame_idx, out_data, box_color=box_color, depth_threshold=depth_threshold)
-                prev_box = [box[0], box[1], box[2], box[3]]
                 cv2.imshow(seq, I)
                 set_current_attr(out_data, frame_idx)
 
@@ -291,8 +265,7 @@ parser.add_argument('--sequence_path', type=str, default='/home/yan/Desktop/raw_
 parser.add_argument('--sequences', nargs='+', default=None, help='to annotated the specific sequences')
 parser.add_argument('--out_path', type=str, default=None, help='to save the annotation files, otherwise under the sequence folder')
 parser.add_argument('--depth_threshold', type=int, default=3000, help='to ignore the largest depth values')
-# parser.add_argument('--box_color', default='red', help='the BGR color of the drawing box')
-parser.add_argument('--frame_idx', type=int, default=0, help='start from Frame Idx, starts from 0')
+parser.add_argument('--box_color', default='red', help='the BGR color of the drawing box')
 
 if __name__ == '__main__':
 
@@ -302,11 +275,11 @@ if __name__ == '__main__':
     # sequences = ['flower02_wild']
     print('Totally %d sequences'%len(args.sequences))
 
-    # if args.box_color == 'red':
-    #     box_color = (0, 0, 255)
-    # elif args.box_color == 'blue':
-    #     box_color = (255, 0, 0)
-    # elif args.box_color == 'green':
-    #     box_color = (0, 255, 0)
-    box_color = (0, 0, 255)
-    attribute_annotator(args.sequence_path, sequences=args.sequences, out_path=args.out_path, box_color=box_color, depth_threshold=args.depth_threshold, frame_idx=args.frame_idx)
+    if args.box_color == 'red':
+        box_color = (0, 0, 255)
+    elif args.box_color == 'blue':
+        box_color = (255, 0, 0)
+    elif args.box_color == 'green':
+        box_color = (0, 255, 0)
+
+    attribute_annotator(args.sequence_path, sequences=args.sequences, out_path=args.out_path, box_color=box_color, depth_threshold=args.depth_threshold)
